@@ -20,16 +20,22 @@ router.post('/signup', async (req, res) => {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+    // 🔐 Role safety: default student, admin sirf allow agar explicitly allowed ho
+    let finalRole = 'student';
+    if (role && ['admin', 'student'].includes(role)) {
+      finalRole = role;
+    }
+
     // Create new user
     const newUser = new User({
       email,
       password: hashedPassword,
-      role: role || 'student'
+      role: finalRole
     });
 
     await newUser.save();
 
-    // Generate JWT token
+    // Generate JWT token (role already included – good 👍)
     const token = jwt.sign(
       { userId: newUser._id, role: newUser.role },
       process.env.JWT_SECRET,
@@ -67,7 +73,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Generate JWT token
+    // Generate JWT token (role preserved)
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,

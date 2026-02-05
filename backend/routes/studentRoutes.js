@@ -2,10 +2,14 @@ import express from "express";
 import Student from "../models/Student.js";
 import Room from "../models/Room.js";
 
+// ✅ ADD THESE IMPORTS (new)
+import authMiddleware from "../middleware/authMiddleware.js";
+import requireRole from "../middleware/requireRole.js";
+
 const router = express.Router();
 
-// Get all students (with room populated)
-router.get("/", async (req, res) => {
+// Get all students (Admin only)
+router.get("/", authMiddleware, requireRole("admin"), async (req, res) => {
   try {
     const students = await Student.find().populate("room");
     res.json(students);
@@ -14,8 +18,8 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Create student + assign room safely
-router.post("/", async (req, res) => {
+// Create student + assign room safely (Admin only)
+router.post("/", authMiddleware, requireRole("admin"), async (req, res) => {
   try {
     const { name, email, course, room } = req.body;
 
@@ -49,8 +53,8 @@ router.post("/", async (req, res) => {
   }
 });
 
-// Change student's room (re-assign)
-router.put("/:id/change-room", async (req, res) => {
+// Change student's room (Admin only)
+router.put("/:id/change-room", authMiddleware, requireRole("admin"), async (req, res) => {
   try {
     const { room } = req.body;
     const student = await Student.findById(req.params.id);
@@ -92,8 +96,8 @@ router.put("/:id/change-room", async (req, res) => {
   }
 });
 
-// Delete student + free room occupancy
-router.delete("/:id", async (req, res) => {
+// Delete student + free room occupancy (Admin only)
+router.delete("/:id", authMiddleware, requireRole("admin"), async (req, res) => {
   try {
     const student = await Student.findById(req.params.id);
 
@@ -111,3 +115,13 @@ router.delete("/:id", async (req, res) => {
 });
 
 export default router;
+
+// 👀 Dashboard stats (Admin + Student dono ke liye - read-only)
+router.get("/stats", authMiddleware, async (req, res) => {
+  try {
+    const totalStudents = await Student.countDocuments();
+    res.json({ totalStudents });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});

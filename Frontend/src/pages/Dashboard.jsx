@@ -27,18 +27,41 @@ export default function Dashboard() {
   const fetchAll = useCallback(async () => {
     if (!token) return;
     const cfg = { headers: { Authorization: `Bearer ${token}` } };
-    const [r, s] = await Promise.all([
-      axios.get("http://localhost:5000/api/rooms", cfg),
-      axios.get("http://localhost:5000/api/students", cfg),
-    ]);
-    const rooms = r.data || [];
-    const students = s.data || [];
-    const totalRooms = rooms.length;
-    const occupiedRooms = rooms.filter(x => (x.occupied || 0) > 0).length;
-    const totalStudents = students.length;
-    const availableRooms = Math.max(totalRooms - occupiedRooms, 0);
-    setStats({ totalRooms, occupiedRooms, totalStudents, availableRooms });
-  }, [token]);
+
+    try {
+      // 👑 Admin: full data routes | 🎓 Student: stats-only routes
+      const isAdmin = user?.role === "admin";
+
+      const [r, s] = await Promise.all([
+        isAdmin
+          ? axios.get("http://localhost:5000/api/rooms", cfg)
+          : axios.get("http://localhost:5000/api/rooms/stats", cfg),
+        isAdmin
+          ? axios.get("http://localhost:5000/api/students", cfg)
+          : axios.get("http://localhost:5000/api/students/stats", cfg),
+      ]);
+
+      if (isAdmin) {
+        const rooms = r.data || [];
+        const students = s.data || [];
+        const totalRooms = rooms.length;
+        const occupiedRooms = rooms.filter(x => (x.occupants?.length || 0) > 0).length;
+        const totalStudents = students.length;
+        const availableRooms = Math.max(totalRooms - occupiedRooms, 0);
+        setStats({ totalRooms, occupiedRooms, totalStudents, availableRooms });
+      } else {
+        // 🎓 Student stats response structure
+        setStats({
+          totalRooms: r.data.totalRooms || 0,
+          occupiedRooms: r.data.occupiedRooms || 0,
+          availableRooms: r.data.availableRooms || 0,
+          totalStudents: s.data.totalStudents || 0,
+        });
+      }
+    } catch (e) {
+      console.error("Dashboard stats error:", e?.response?.data || e.message);
+    }
+  }, [token, user?.role]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -61,7 +84,7 @@ export default function Dashboard() {
     <div className="app-bg p-8 min-h-screen">
       <div className="mb-10">
         <h1 className="text-3xl font-bold">Overview</h1>
-        <p className="opacity-70 mt-1">Welcome back, {user?.email || "Admin"}</p>
+        <p className="opacity-70 mt-1">Welcome back, {user?.email || "User"}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">

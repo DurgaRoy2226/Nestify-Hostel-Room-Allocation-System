@@ -3,9 +3,8 @@ import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { socket } from "../socket";
 
-
 const Rooms = () => {
-  const { token } = useAuth();
+  const { token, user } = useAuth(); // ✅ user added
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -49,17 +48,15 @@ const Rooms = () => {
       console.error(err?.response?.data || err.message);
       alert("Failed to add room");
 
-
       useEffect(() => {
-  socket.on("rooms:updated", () => {
-    fetchRooms();   // tumhara existing fetchRooms function
-  });
+        socket.on("rooms:updated", () => {
+          fetchRooms();   // tumhara existing fetchRooms function
+        });
 
-  return () => {
-    socket.off("rooms:updated");
-  };
-}, []);
-
+        return () => {
+          socket.off("rooms:updated");
+        };
+      }, []);
     }
   };
 
@@ -81,43 +78,45 @@ const Rooms = () => {
     <div className="p-6">
       <h1 className="text-4xl font-bold mb-8">Rooms</h1>
 
-      {/* Add Room */}
-      <div className="glass-card rounded-3xl p-6 mb-10 grid grid-cols-1 md:grid-cols-5 gap-4">
-        <input
-          className="bg-transparent border border-white/20 rounded-xl p-3 outline-none"
-          placeholder="Room Number"
-          value={roomNumber}
-          onChange={(e) => setRoomNumber(e.target.value)}
-        />
-        <input
-          className="bg-transparent border border-white/20 rounded-xl p-3 outline-none"
-          placeholder="Type (Single/Double)"
-          value={type}
-          onChange={(e) => setType(e.target.value)}
-        />
-        <input
-          type="number"
-          min="1"
-          className="bg-transparent border border-white/20 rounded-xl p-3 outline-none"
-          placeholder="Capacity"
-          value={capacity}
-          onChange={(e) => setCapacity(e.target.value)}
-        />
-        <input
-          type="number"
-          min="0"
-          className="bg-transparent border border-white/20 rounded-xl p-3 outline-none"
-          placeholder="Price"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-        />
-        <button
-          onClick={addRoom}
-          className="px-6 py-3 rounded-xl bg-primary-500 text-black font-semibold hover:opacity-90"
-        >
-          Add Room
-        </button>
-      </div>
+      {/* 👑 Add Room (Admin only) */}
+      {user?.role === "admin" && (
+        <div className="glass-card rounded-3xl p-6 mb-10 grid grid-cols-1 md:grid-cols-5 gap-4">
+          <input
+            className="bg-transparent border border-white/20 rounded-xl p-3 outline-none"
+            placeholder="Room Number"
+            value={roomNumber}
+            onChange={(e) => setRoomNumber(e.target.value)}
+          />
+          <input
+            className="bg-transparent border border-white/20 rounded-xl p-3 outline-none"
+            placeholder="Type (Single/Double)"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+          />
+          <input
+            type="number"
+            min="1"
+            className="bg-transparent border border-white/20 rounded-xl p-3 outline-none"
+            placeholder="Capacity"
+            value={capacity}
+            onChange={(e) => setCapacity(e.target.value)}
+          />
+          <input
+            type="number"
+            min="0"
+            className="bg-transparent border border-white/20 rounded-xl p-3 outline-none"
+            placeholder="Price"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+          />
+          <button
+            onClick={addRoom}
+            className="px-6 py-3 rounded-xl bg-primary-500 text-black font-semibold hover:opacity-90"
+          >
+            Add Room
+          </button>
+        </div>
+      )}
 
       {/* Rooms List */}
       {loading ? (
@@ -138,12 +137,15 @@ const Rooms = () => {
               </p>
               <p className="text-dark-400 mt-1">Price: ₹{room.price}</p>
 
-              <button
-                onClick={() => deleteRoom(room._id)}
-                className="mt-4 px-4 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30"
-              >
-                Delete
-              </button>
+              {/* 👑 Delete (Admin only) */}
+              {user?.role === "admin" && (
+                <button
+                  onClick={() => deleteRoom(room._id)}
+                  className="mt-4 px-4 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                >
+                  Delete
+                </button>
+              )}
             </div>
           ))}
         </div>

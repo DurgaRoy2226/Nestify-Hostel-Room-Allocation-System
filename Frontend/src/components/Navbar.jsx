@@ -24,8 +24,19 @@ const Navbar = () => {
 
       <div className="flex items-center space-x-6">
         <Link to="/dashboard" className="hover:text-primary-400 transition-colors">Dashboard</Link>
-        <Link to="/students" className="hover:text-primary-400 transition-colors">Students</Link>
-        <Link to="/rooms" className="hover:text-primary-400 transition-colors">Rooms</Link>
+
+        {/* 👑 Admin-only links */}
+        {user?.role === 'admin' && (
+          <>
+            <Link to="/students" className="hover:text-primary-400 transition-colors">Students</Link>
+            <Link to="/rooms" className="hover:text-primary-400 transition-colors">Rooms</Link>
+          </>
+        )}
+
+        {/* 🎓 Student-only link (optional future page) */}
+        {user?.role === 'student' && (
+          <Link to="/my-room" className="hover:text-primary-400 transition-colors">My Room</Link>
+        )}
         
         <div className="flex items-center space-x-4">
           <span className="text-sm">
