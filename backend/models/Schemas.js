@@ -88,6 +88,12 @@ const roomSchema = new mongoose.Schema({
   timestamps: true
 });
 
-export const User = mongoose.model('User', userSchema);
-export const Student = mongoose.model('Student', studentSchema);
-export const Room = mongoose.model('Room', roomSchema);
+// ✅ Safe model exports (nodemon restart fix)
+export const User =
+  mongoose.models.User || mongoose.model('User', userSchema);
+
+export const Student =
+  mongoose.models.Student || mongoose.model('Student', studentSchema);
+
+export const Room =
+  mongoose.models.Room || mongoose.model('Room', roomSchema);

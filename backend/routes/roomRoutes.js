@@ -1,95 +1,77 @@
-import express from 'express';
-import { Room, Student } from '../models/Schemas.js';
+import express from "express";
+import Room from "../models/Room.js";
+import Student from "../models/Student.js";
+import { io } from "../server.js";
 
 const router = express.Router();
 
 // Get all rooms
-router.get('/', async (req, res) => {
+router.get("/", async (req, res) => {
   try {
-    const rooms = await Room.find().populate('occupants');
+    const rooms = await Room.find().populate("occupants");
     res.json(rooms);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: error.message });
   }
 });
 
-// Get room by ID
-router.get('/:id', async (req, res) => {
+// Create room + emit real-time update
+router.post("/", async (req, res) => {
   try {
-    const room = await Room.findById(req.params.id).populate('occupants');
-    if (!room) {
-      return res.status(404).json({ message: 'Room not found' });
+    console.log("REQ BODY:", req.body);
+
+    const roomNumber = req.body.roomNumber;
+    const capacity = Number(req.body.capacity);
+
+    if (!roomNumber || !capacity) {
+      return res.status(400).json({ message: "roomNumber and capacity are required" });
     }
-    res.json(room);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
 
-// Create new room (Admin only)
-router.post('/', async (req, res) => {
-  try {
-    const { roomNumber, type, capacity, price } = req.body;
-    
-    // Check if room already exists
     const existingRoom = await Room.findOne({ roomNumber });
     if (existingRoom) {
-      return res.status(400).json({ message: 'Room already exists' });
+      return res.status(400).json({ message: "Room already exists" });
     }
-    
-    const newRoom = new Room({
+
+    const newRoom = await Room.create({
       roomNumber,
-      type,
       capacity,
-      price
+      type: req.body.type || "Single",
+      price: Number(req.body.price) || 0,
+      occupants: []
     });
-    
-    await newRoom.save();
+
+    // 🔔 REAL-TIME SIGNAL
+    io.emit("rooms:updated");
+
     res.status(201).json(newRoom);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("🔥 Create Room Error:", error);
+    res.status(500).json({ message: error.message });
   }
 });
 
-// Update room (Admin only)
-router.put('/:id', async (req, res) => {
-  try {
-    const { roomNumber, type, capacity, price } = req.body;
-    
-    const updatedRoom = await Room.findByIdAndUpdate(
-      req.params.id,
-      { roomNumber, type, capacity, price },
-      { new: true }
-    );
-    
-    if (!updatedRoom) {
-      return res.status(404).json({ message: 'Room not found' });
-    }
-    
-    res.json(updatedRoom);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-// Delete room (Admin only)
-router.delete('/:id', async (req, res) => {
+// Delete room + emit real-time update
+router.delete("/:id", async (req, res) => {
   try {
     const deletedRoom = await Room.findByIdAndDelete(req.params.id);
-    
+
     if (!deletedRoom) {
-      return res.status(404).json({ message: 'Room not found' });
+      return res.status(404).json({ message: "Room not found" });
     }
-    
+
     // Remove room reference from students
     await Student.updateMany(
       { room: deletedRoom._id },
       { $unset: { room: "" } }
     );
-    
-    res.json({ message: 'Room deleted successfully' });
+
+    // 🔔 REAL-TIME SIGNAL
+    io.emit("rooms:updated");
+
+    res.json({ message: "Room deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("Delete Room Error:", error);
+    res.status(500).json({ message: error.message });
   }
 });
 

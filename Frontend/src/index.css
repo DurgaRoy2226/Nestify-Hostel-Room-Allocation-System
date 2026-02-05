@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+
+
 :root {
   --primary-color: #f59e0b;
   --secondary-color: #ec4899;
@@ -61,4 +63,104 @@ body {
 @keyframes slideIn {
   from { opacity: 0; transform: translateX(-20px); }
   to { opacity: 1; transform: translateX(0); }
+}   
+
+
+.kpi-glow {
+  box-shadow: 0 0 0 rgba(245, 158, 11, 0.0);
+  transition: box-shadow .3s ease, transform .3s ease;
+}
+.kpi-glow:hover {
+  box-shadow: 0 10px 40px rgba(245, 158, 11, 0.35);
+  transform: translateY(-4px);
+}
+.ring {
+  --size: 84px;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 9999px;
+  background:
+    conic-gradient(var(--ring-color) calc(var(--pct) * 1%), rgba(255,255,255,.12) 0);
+  display: grid;
+  place-items: center;
+}
+.ring > span {
+  width: calc(var(--size) - 18px);
+  height: calc(var(--size) - 18px);
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, .9);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+}
+.room-tile {
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.12);
+  backdrop-filter: blur(10px);
+}
+.room-full { box-shadow: inset 0 0 0 9999px rgba(239,68,68,.12); }
+.room-mid  { box-shadow: inset 0 0 0 9999px rgba(245,158,11,.12); }
+.room-free { box-shadow: inset 0 0 0 9999px rgba(34,197,94,.12); }
+
+:root {
+  --bg-1: #0b1020;
+  --bg-2: #2a0f1f;
+  --bg-3: #ff8a00;
+  --accent-1: #ffb703;
+  --accent-2: #ff5f6d;
+  --glass: rgba(255, 255, 255, 0.08);
+  --border: rgba(255, 255, 255, 0.15);
+  --text-main: #e6e9f0;
+  --text-muted: #aab1c3;
+}
+
+.app-bg {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 600px at 10% 10%, rgba(255,138,0,0.35), transparent 60%),
+    radial-gradient(1000px 600px at 90% 30%, rgba(255,95,109,0.35), transparent 60%),
+    linear-gradient(135deg, var(--bg-1), var(--bg-2));
+  color: var(--text-main);
+}
+
+.glass-panel {
+  background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.4);
+}
+
+.neon-btn {
+  background: linear-gradient(135deg, #ff8a00, #ff5f6d);
+  color: #0b1020;
+  border-radius: 14px;
+  font-weight: 700;
+  box-shadow: 0 10px 30px rgba(255,95,109,0.45);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.neon-btn:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 16px 40px rgba(255,95,109,0.6);
+}
+
+
+.glass-footer {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.02)
+  );
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25);
+}
+
+
+.app-bg {
+  background: radial-gradient(circle at 20% 20%, rgba(255,120,0,0.25), transparent 40%),
+              radial-gradient(circle at 80% 80%, rgba(255,0,120,0.25), transparent 40%),
+              linear-gradient(120deg, #0b0f1a, #12091a, #1a0b0b);
 }

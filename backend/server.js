@@ -1,39 +1,57 @@
-import express from 'express';
-import mongoose from 'mongoose';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import authRoutes from './routes/authRoutes.js';
-import studentRoutes from './routes/studentRoutes.js';
-import roomRoutes from './routes/roomRoutes.js';
-import authMiddleware from './middleware/authMiddleware.js';
+import express from "express";
+import http from "http";
+import { Server } from "socket.io";
+import mongoose from "mongoose";
+import cors from "cors";
+import dotenv from "dotenv";
+
+import roomRoutes from "./routes/roomRoutes.js";
+import studentRoutes from "./routes/studentRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const server = http.createServer(app);
 
-// Middleware
+// Socket.IO setup
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:3000",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+  },
+});
+
+// Middlewares
 app.use(cors());
 app.use(express.json());
 
-// Database connection
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log('MongoDB connected'))
-.catch(err => console.log(err));
+// MongoDB
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("MongoDB connected"))
+  .catch((e) => console.error("MongoDB error:", e));
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/students', authMiddleware, studentRoutes);
-app.use('/api/rooms', authMiddleware, roomRoutes);
+app.use("/api/auth", authRoutes);     // ✅ FIX: Auth routes added
+app.use("/api/rooms", roomRoutes);
+app.use("/api/students", studentRoutes);
 
-// Health check route
-app.get('/', (req, res) => {
-  res.json({ message: 'Nestify Backend is running!' });
+// Health check
+app.get("/", (req, res) => res.json({ ok: true }));
+
+// Socket.IO connections
+io.on("connection", (socket) => {
+  console.log("🔌 Client connected:", socket.id);
+  socket.on("disconnect", () =>
+    console.log("❌ Client disconnected:", socket.id)
+  );
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+// Export io for routes to emit events
+export { io };
+
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`Server running on ${PORT}`);
 });
