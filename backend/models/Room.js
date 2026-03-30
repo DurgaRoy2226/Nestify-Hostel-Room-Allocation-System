@@ -1,15 +1,64 @@
 import mongoose from "mongoose";
 
-const roomSchema = new mongoose.Schema({
-  roomNumber: { type: String, required: true, unique: true },
-  type: { type: String, default: "Single" },
-  capacity: { type: Number, required: true },
-  price: { type: Number, default: 0 },
-  floor: { type: Number, default: 1 },
-  block: { type: String, default: "A" },
-  amenities: [String],
-  occupants: [{ type: mongoose.Schema.Types.ObjectId, ref: "Student" }],
-  isOccupied: { type: Boolean, default: false }
-});
+const roomSchema = new mongoose.Schema(
+  {
+    roomNumber: {
+      type: String,
+      required: true,
+      unique: true,
+    },
 
-export default mongoose.models.Room || mongoose.model("Room", roomSchema);
+    capacity: {
+      type: Number,
+      required: true,
+      default: 1,
+    },
+
+    // ✅ Single / Double / Triple
+    type: {
+      type: String,
+      enum: ["Single", "Double", "Triple"],
+      default: "Single",
+    },
+
+    // ✅ NEW (frontend se aa raha hai)
+    price: {
+      type: Number,
+      default: 0,
+    },
+
+    block: {
+      type: String,
+      default: "A",
+    },
+
+    floor: {
+      type: Number,
+      default: 1,
+    },
+
+    // ✅ occupancy tracking
+    occupiedBeds: {
+      type: Number,
+      default: 0,
+    },
+
+    beds: [
+      {
+        bedNumber: Number,
+        isOccupied: {
+          type: Boolean,
+          default: false,
+        },
+        student: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Student",
+          default: null,
+        },
+      },
+    ],
+  },
+  { timestamps: true }
+);
+
+export default mongoose.model("Room", roomSchema);

@@ -1,47 +1,57 @@
 import express from "express";
-import http from "http";
-import { Server } from "socket.io";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 
-import roomRoutes from "./routes/roomRoutes.js";
-import studentRoutes from "./routes/studentRoutes.js";
+// Routes import (IMPORTANT FIX)
 import authRoutes from "./routes/authRoutes.js";
+import studentRoutes from "./routes/studentRoutes.js";
+import roomRoutes from "./routes/roomRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
 
 dotenv.config();
 
 const app = express();
-const server = http.createServer(app);
 
-const io = new Server(server, {
-  cors: { origin: "http://localhost:5173", methods: ["GET", "POST", "PUT", "DELETE"] },
-});
-
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch((e) => console.error("MongoDB error:", e));
-
-// Routes
+// ✅ API Routes (clean structure)
 app.use("/api/auth", authRoutes);
-app.use("/api/rooms", roomRoutes);
 app.use("/api/students", studentRoutes);
-app.use("/api/admin", adminRoutes);       // ✅ NEW
-app.use("/api/payment", paymentRoutes);   // ✅ NEW
+app.use("/api/rooms", roomRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/payment", paymentRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
-app.get("/", (req, res) => res.json({ ok: true }));
-
-io.on("connection", (socket) => {
-  console.log("🔌 Connected:", socket.id);
-  socket.on("disconnect", () => console.log("❌ Disconnected:", socket.id));
+// ✅ Test route
+app.get("/", (req, res) => {
+  res.send("API is running 🚀");
 });
 
-export { io };
+// ✅ MongoDB Connection (Improved)
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => console.log("MongoDB Connected ✅"))
+.catch((err) => console.log("DB Error ❌", err));
 
+// ✅ Global Error Handler (NEW 🔥)
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    success: false,
+    message: err.message || "Server Error",
+  });
+});
+
+// ✅ Server Start
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`🚀 Server on port ${PORT}`));
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
