@@ -8,50 +8,40 @@ import dotenv from "dotenv";
 import roomRoutes from "./routes/roomRoutes.js";
 import studentRoutes from "./routes/studentRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 
 dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
 
-// Socket.IO setup
 const io = new Server(server, {
-  cors: {
-    origin: "http://localhost:3000",
-    methods: ["GET", "POST", "PUT", "DELETE"],
-  },
+  cors: { origin: "http://localhost:5173", methods: ["GET", "POST", "PUT", "DELETE"] },
 });
 
-// Middlewares
 app.use(cors());
 app.use(express.json());
 
-// MongoDB
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected"))
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB connected"))
   .catch((e) => console.error("MongoDB error:", e));
 
 // Routes
-app.use("/api/auth", authRoutes);     // ✅ FIX: Auth routes added
+app.use("/api/auth", authRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/students", studentRoutes);
+app.use("/api/admin", adminRoutes);       // ✅ NEW
+app.use("/api/payment", paymentRoutes);   // ✅ NEW
 
-// Health check
 app.get("/", (req, res) => res.json({ ok: true }));
 
-// Socket.IO connections
 io.on("connection", (socket) => {
-  console.log("🔌 Client connected:", socket.id);
-  socket.on("disconnect", () =>
-    console.log("❌ Client disconnected:", socket.id)
-  );
+  console.log("🔌 Connected:", socket.id);
+  socket.on("disconnect", () => console.log("❌ Disconnected:", socket.id));
 });
 
-// Export io for routes to emit events
 export { io };
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`Server running on ${PORT}`);
-});
+server.listen(PORT, () => console.log(`🚀 Server on port ${PORT}`));

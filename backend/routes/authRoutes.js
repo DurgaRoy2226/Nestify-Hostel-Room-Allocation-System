@@ -1,41 +1,42 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { User } from '../models/Schemas.js';
+import User from '../models/User.js';
+import Student from '../models/Student.js';
 
 const router = express.Router();
 
-// Signup
+// ✅ Signup — sirf student
 router.post('/signup', async (req, res) => {
   try {
-    const { email, password, role } = req.body;
+    const { name, email, password } = req.body;
 
-    // Check if user already exists
+    if (!name || !email || !password)
+      return res.status(400).json({ message: 'Name, email and password required' });
+
     const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    if (existingUser)
       return res.status(400).json({ message: 'User already exists' });
-    }
 
-    // Hash password
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 🔐 Role safety: default student, admin sirf allow agar explicitly allowed ho
-    let finalRole = 'student';
-    if (role && ['admin', 'student'].includes(role)) {
-      finalRole = role;
-    }
-
-    // Create new user
     const newUser = new User({
+      name,
       email,
       password: hashedPassword,
-      role: finalRole
+      role: 'student',
+      isApproved: true  // ✅ Auto approved
     });
 
     await newUser.save();
 
-    // Generate JWT token (role already included – good 👍)
+    // ✅ Auto create student profile
+    await Student.create({ 
+      name: newUser.name, 
+      email: newUser.email, 
+      userId: newUser._id 
+    });
+
     const token = jwt.sign(
       { userId: newUser._id, role: newUser.role },
       process.env.JWT_SECRET,
@@ -43,37 +44,30 @@ router.post('/signup', async (req, res) => {
     );
 
     res.status(201).json({
-      message: 'User created successfully',
+      message: 'Account created successfully!',
       token,
-      user: {
-        id: newUser._id,
-        email: newUser.email,
-        role: newUser.role
-      }
+      user: { id: newUser._id, name: newUser.name, email: newUser.email, role: newUser.role }
     });
+
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
-// Login
+// ✅ Login
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Check if user exists
     const user = await User.findOne({ email });
-    if (!user) {
+    if (!user)
       return res.status(400).json({ message: 'Invalid credentials' });
-    }
 
-    // Check password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
+    if (!isMatch)
       return res.status(400).json({ message: 'Invalid credentials' });
-    }
 
-    // Generate JWT token (role preserved)
+    // ✅ Approval check hataya — seedha login
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
@@ -83,12 +77,9 @@ router.post('/login', async (req, res) => {
     res.json({
       message: 'Login successful',
       token,
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role
-      }
+      user: { id: user._id, name: user.name, email: user.email, role: user.role }
     });
+
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

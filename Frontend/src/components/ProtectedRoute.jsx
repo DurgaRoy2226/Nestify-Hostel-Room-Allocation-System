@@ -3,17 +3,20 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Loader from './Loader';
 
-const ProtectedRoute = ({ children }) => {
+// ✅ Basic: login check
+export const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
+  if (loading) return <Loader />;
+  if (!user) return <Navigate to="/login" />;
+  return children;
+};
 
-  if (loading) {
-    return <Loader />;
-  }
-
-  if (!user) {
-    return <Navigate to="/login" />;
-  }
-
+// ✅ Admin only route
+export const AdminRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <Loader />;
+  if (!user) return <Navigate to="/login" />;
+  if (user.role !== 'admin') return <Navigate to="/dashboard" />;
   return children;
 };
 
