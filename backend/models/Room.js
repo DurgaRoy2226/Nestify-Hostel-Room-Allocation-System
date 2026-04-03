@@ -43,6 +43,13 @@ const roomSchema = new mongoose.Schema(
       default: 0,
     },
 
+    occupants: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Student",
+      },
+    ],
+
     beds: [
       {
         bedNumber: Number,

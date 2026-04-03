@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { socket } from "../socket";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 const StatCard = ({ label, value, icon, color, pct }) => (
   <div className="glass-panel p-6 hover-lift kpi-glow rounded-2xl">
@@ -67,10 +69,71 @@ const RoomFloorPlan = ({ rooms }) => {
   );
 };
 
+const AnalyticsCharts = ({ rooms }) => {
+  // 1. Room Type Distribution
+  const typeData = rooms.reduce((acc, r) => {
+    const existing = acc.find(x => x.name === r.type);
+    if (existing) existing.value += 1;
+    else acc.push({ name: r.type, value: 1 });
+    return acc;
+  }, []);
+  const PIE_COLORS = ['#ff8a00', '#22c55e', '#3b82f6', '#ec4899'];
+
+  // 2. Occupancy by Block
+  const blockDataDict = rooms.reduce((acc, r) => {
+    const block = r.block || 'A';
+    if (!acc[block]) acc[block] = { name: `Block ${block}`, Cap: 0, Used: 0 };
+    acc[block].Cap += r.capacity;
+    acc[block].Used += r.occupants?.length || 0;
+    return acc;
+  }, {});
+  const blockData = Object.values(blockDataDict);
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+      <div className="glass-panel rounded-2xl p-6 h-80 flex flex-col">
+        <h2 className="font-bold text-lg mb-2">🍰 Room Type Split</h2>
+        <div className="flex-1">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={typeData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
+                {typeData.map((entry, index) => <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
+              </Pie>
+              <RechartsTooltip contentStyle={{ background: 'rgba(15,10,30,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: 'white' }} itemStyle={{ color: 'white' }} />
+              <Legend wrapperStyle={{ fontSize: '12px' }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+      
+      <div className="glass-panel rounded-2xl p-6 h-80 flex flex-col">
+        <h2 className="font-bold text-lg mb-2">📊 Capacity by Block</h2>
+        <div className="flex-1 mt-2 -ml-6">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={blockData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+              <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
+              <RechartsTooltip 
+                contentStyle={{ background: 'rgba(15,10,30,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: 'white' }} 
+                cursor={{ fill: 'rgba(255,255,255,0.05)' }} 
+              />
+              <Legend wrapperStyle={{ fontSize: '12px' }} />
+              <Bar dataKey="Cap" name="Total Capacity" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Used" name="Occupied Beds" fill="#ff5f6d" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function Dashboard() {
   const { user, token } = useAuth();
   const isAdmin = user?.role === 'admin';
   const [stats, setStats] = useState({ totalRooms: 0, occupiedRooms: 0, totalStudents: 0, availableRooms: 0 });
+  const [studentData, setStudentData] = useState(null);
   const [rooms, setRooms] = useState([]);
   const [activity, setActivity] = useState([]);
 
@@ -89,11 +152,8 @@ export default function Dashboard() {
         setStats({ totalRooms, occupiedRooms, totalStudents: s.data.length, availableRooms: totalRooms - occupiedRooms });
         setRooms(roomData);
       } else {
-        const [r, s] = await Promise.all([
-          axios.get("http://localhost:5000/api/rooms/stats", cfg),
-          axios.get("http://localhost:5000/api/students/stats", cfg),
-        ]);
-        setStats({ totalRooms: r.data.totalRooms || 0, occupiedRooms: r.data.occupiedRooms || 0, availableRooms: r.data.availableRooms || 0, totalStudents: s.data.totalStudents || 0 });
+        const res = await axios.get("http://localhost:5000/api/students/me", cfg);
+        setStudentData(res.data);
       }
     } catch (e) {
       console.error("Dashboard error:", e?.response?.data || e.message);
@@ -122,22 +182,47 @@ export default function Dashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-        <StatCard label="Total Rooms" value={stats.totalRooms} icon="🏠" color="#ffb703" pct={occupancyPct} />
-        <StatCard label="Students" value={stats.totalStudents} icon="👥" color="#ff8a00" />
-        <StatCard label="Occupied" value={stats.occupiedRooms} icon="🔒" color="#ef4444" />
-        <StatCard label="Available" value={stats.availableRooms} icon="✨" color="#22c55e" />
+        {isAdmin ? (
+          <>
+            <StatCard label="Total Rooms" value={stats.totalRooms} icon="🏠" color="#ffb703" pct={occupancyPct} />
+            <StatCard label="Students" value={stats.totalStudents} icon="👥" color="#ff8a00" />
+            <StatCard label="Occupied" value={stats.occupiedRooms} icon="🔒" color="#ef4444" />
+            <StatCard label="Available" value={stats.availableRooms} icon="✨" color="#22c55e" />
+          </>
+        ) : (
+          <>
+            <StatCard label="Room Assigned" value={studentData?.room?.roomNumber || 'None'} icon="🛏️" color="#ffb703" />
+            <StatCard label="Status" value={studentData?.room ? 'Allocated' : 'Pending'} icon="📌" color={studentData?.room ? '#22c55e' : '#ff8a00'} />
+            <StatCard label="Fees Status" value={studentData?.feesStatus === 'paid' ? 'Paid' : 'Pending'} icon="💳" color={studentData?.feesStatus === 'paid' ? '#22c55e' : '#ef4444'} />
+            <StatCard label="Active Requests" value={(studentData?.maintenanceRequests?.filter(r => r.status === 'pending').length) || 0} icon="🔧" color="#ff5f6d" />
+          </>
+        )}
       </div>
 
       {/* Floor Plan + Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          {isAdmin && rooms.length > 0
-            ? <RoomFloorPlan rooms={rooms} />
-            : <div className="glass-panel rounded-2xl p-6 text-center" style={{ color: 'var(--text-muted)' }}>
-                No rooms added yet. Admin can add rooms from the Rooms page.
-              </div>
-          }
-        </div>
+        {isAdmin ? (
+          <div className="lg:col-span-2 space-y-6">
+            {rooms.length > 0
+              ? <RoomFloorPlan rooms={rooms} />
+              : <div className="glass-panel rounded-2xl p-6 text-center" style={{ color: 'var(--text-muted)' }}>
+                  No rooms added yet. Admin can add rooms from the Rooms page.
+                </div>
+            }
+            {rooms.length > 0 && <AnalyticsCharts rooms={rooms} />}
+          </div>
+        ) : (
+          <div className="lg:col-span-2 glass-panel rounded-2xl p-8 text-center flex flex-col items-center justify-center">
+            <span className="text-6xl mb-4">🏠</span>
+            <h2 className="text-2xl font-bold mb-2">Welcome to your Nestify Portal</h2>
+            <p style={{ color: 'var(--text-muted)' }} className="mb-6">
+              Access your personal room details, pay your hostel fees, and raise maintenance requests straight from your dashboard.
+            </p>
+            <Link to="/my-room" className="neon-btn px-6 py-3 text-white font-semibold">
+              Go to My Room →
+            </Link>
+          </div>
+        )}
 
         <div className="glass-panel rounded-2xl p-6">
           <h2 className="font-bold text-lg mb-4 flex items-center gap-2">

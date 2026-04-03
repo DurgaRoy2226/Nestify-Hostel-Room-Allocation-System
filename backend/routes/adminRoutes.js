@@ -47,4 +47,64 @@ router.delete('/reject/:userId', protect, adminOnly, async (req, res) => {
   }
 });
 
+// ✅ Get all maintenance issues
+router.get('/maintenance', protect, adminOnly, async (req, res) => {
+  try {
+    const students = await Student.find({ 'maintenanceRequests.0': { $exists: true } }).populate('room');
+    
+    let allIssues = [];
+    students.forEach(student => {
+      student.maintenanceRequests.forEach(issue => {
+        allIssues.push({
+          ...issue.toObject(),
+          studentId: student._id,
+          studentName: student.name,
+          roomNumber: student.room ? student.room.roomNumber : 'Unassigned',
+          userId: student.userId
+        });
+      });
+    });
+
+    // Sort by newest first
+    allIssues.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    res.json(allIssues);
+  } catch (e) {
+    res.status(500).json({ message: 'Server error', error: e.message });
+  }
+});
+
+// ✅ Resolve maintenance issue
+router.put('/maintenance/:studentId/:issueId/resolve', protect, adminOnly, async (req, res) => {
+  try {
+    const { studentId, issueId } = req.params;
+    
+    const student = await Student.findOneAndUpdate(
+      { _id: studentId, "maintenanceRequests._id": issueId },
+      { $set: { "maintenanceRequests.$.status": "resolved" } },
+      { new: true }
+    );
+
+    if (!student) return res.status(404).json({ message: 'Student or issue not found' });
+
+    // Try to notify the student
+    try {
+      if (student.userId) {
+        const { default: Notification } = await import('../models/Notification.js');
+        await Notification.create({
+          userId: student.userId,
+          message: "Your maintenance request has been resolved.",
+          type: "success"
+        });
+      }
+    } catch (notifErr) {
+      console.log('Notification error: ', notifErr);
+    }
+
+    res.json({ message: 'Issue resolved successfully' });
+  } catch (e) {
+    res.status(500).json({ message: 'Server error', error: e.message });
+  }
+});
+
 export default router;

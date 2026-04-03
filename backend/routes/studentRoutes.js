@@ -26,6 +26,23 @@ router.get("/me", protect, async (req, res) => {
   }
 });
 
+// ✅ Update my profile — Student
+router.put("/me", protect, async (req, res) => {
+  try {
+    const { phone, course } = req.body;
+    const student = await Student.findOneAndUpdate(
+      { userId: req.user.userId },
+      { $set: { phone, course } },
+      { new: true }
+    ).populate("room");
+    
+    if (!student) return res.status(404).json({ message: "Student profile not found" });
+    res.json(student);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // ✅ Get all students — Admin only
 router.get("/", protect, adminOnly, async (req, res) => {
   try {
@@ -137,6 +154,59 @@ router.delete("/:id", protect, adminOnly, async (req, res) => {
 
     await Student.findByIdAndDelete(req.params.id);
     res.json({ message: "Student deleted" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ✅ Book Room — Student
+router.post("/me/book-room", protect, async (req, res) => {
+  try {
+    const { roomId } = req.body;
+    if (!roomId) return res.status(400).json({ message: "Room ID is required" });
+
+    const student = await Student.findOne({ userId: req.user.userId });
+    if (!student) return res.status(404).json({ message: "Student profile not found" });
+
+    // Ensure student doesn't already have a room
+    if (student.room) {
+      return res.status(400).json({ message: "You already have an assigned room." });
+    }
+
+    const room = await Room.findById(roomId).populate('occupants');
+    if (!room) return res.status(404).json({ message: "Room not found" });
+
+    // Check capacity
+    const currentOccupants = room.occupants?.length || 0;
+    if (currentOccupants >= room.capacity) {
+      return res.status(400).json({ message: "Sorry, this room is already full." });
+    }
+
+    // Assign room
+    student.room = room._id;
+    await student.save();
+
+    await Room.findByIdAndUpdate(room._id, {
+      $push: { occupants: student._id }
+    });
+
+    // Notify Admin about new booking
+    try {
+      const { default: Notification } = await import('../models/Notification.js');
+      const { default: User } = await import('../models/User.js');
+      const admins = await User.find({ role: 'admin' });
+      
+      const notifications = admins.map(admin => ({
+        userId: admin._id,
+        message: `${student.name} just booked Room ${room.roomNumber}.`,
+        type: "info"
+      }));
+      await Notification.insertMany(notifications);
+    } catch (notifErr) {
+      console.log('Notification error: ', notifErr);
+    }
+
+    res.status(200).json({ message: "Room booked successfully!", room });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

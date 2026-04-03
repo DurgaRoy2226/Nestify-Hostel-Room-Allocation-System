@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
+import { Link } from "react-router-dom";
 
 export default function MyRoom() {
   const { token } = useAuth();
@@ -28,6 +29,13 @@ export default function MyRoom() {
     if (!issue.trim()) return;
     try {
       await axios.post("http://localhost:5000/api/students/maintenance", { issue }, cfg);
+      setStudent(prev => ({
+        ...prev,
+        maintenanceRequests: [
+          ...(prev.maintenanceRequests || []),
+          { issue, status: "pending", _id: Date.now().toString() }
+        ]
+      }));
       setIssue("");
       alert("Maintenance request submitted! ✅");
     } catch (e) { alert("Failed to submit request"); }
@@ -39,27 +47,39 @@ export default function MyRoom() {
     setCardData({ number: "", name: "", expiry: "", cvv: "" });
   };
 
-  const handlePaySubmit = () => {
+  const handlePaySubmit = async () => {
     if (!cardData.number || !cardData.name || !cardData.expiry || !cardData.cvv)
       return alert("Please fill all fields!");
     setPayLoading(true);
     setPayStep(2);
-    setTimeout(() => {
-      setPayStep(3);
+    
+    try {
+      await axios.post("http://localhost:5000/api/payment/verify", {
+        studentId: student._id,
+        amount: student?.room?.price || 5000
+      }, cfg);
+
+      setTimeout(() => {
+        setPayStep(3);
+        setPayLoading(false);
+        setStudent(prev => ({
+          ...prev,
+          feesStatus: "paid",
+          feesHistory: [
+            ...(prev.feesHistory || []),
+            {
+              amount: student?.room?.price || 5000,
+              date: new Date().toISOString(),
+              status: "success"
+            }
+          ]
+        }));
+      }, 1500);
+    } catch (e) {
+      alert("Payment failed. Please try again.");
+      setShowPayModal(false);
       setPayLoading(false);
-      setStudent(prev => ({
-        ...prev,
-        feesStatus: "paid",
-        feesHistory: [
-          ...(prev.feesHistory || []),
-          {
-            amount: student?.room?.price || 5000,
-            date: new Date().toISOString(),
-            status: "success"
-          }
-        ]
-      }));
-    }, 2500);
+    }
   };
 
   if (loading) return (
@@ -81,10 +101,15 @@ export default function MyRoom() {
       </div>
 
       {!student || !student.room ? (
-        <div className="glass-panel rounded-2xl p-10 text-center">
+        <div className="glass-panel rounded-2xl p-10 text-center flex flex-col items-center justify-center">
           <div className="text-6xl mb-4">🏠</div>
-          <h2 className="text-xl font-bold mb-2">No Room Assigned Yet</h2>
-          <p style={{ color: 'var(--text-muted)' }}>Admin will assign you a room soon.</p>
+          <h2 className="text-2xl font-bold mb-2">No Room Assigned Yet</h2>
+          <p className="mb-6" style={{ color: 'var(--text-muted)' }}>
+            Take control of your stay! You can now browse available rooms and choose your favorite.
+          </p>
+          <Link to="/select-room" className="neon-btn px-6 py-3 text-white font-semibold">
+            Browse & Select Room →
+          </Link>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
